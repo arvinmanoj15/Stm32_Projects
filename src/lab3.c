@@ -48,6 +48,9 @@ Task_typedef;
 Task_typedef tasks[MAX_TASKS];
 
 int32_t TaskAdd (void (*f) (void *data), void *data, TaskStatus state);
+int32_t TaskPending (int32_t id);
+int32_t TaskReady (int32_t id);
+int32_t TaskRunning (int32_t id);
 int32_t TaskKill (int32_t id);
 int32_t TaskCurrent (void);
 void TaskSwitcher (void);
@@ -77,16 +80,32 @@ int32_t TaskAdd (void (*f) (void *data), void *data, TaskStatus state)
   return -1;
 }
 
+int32_t TaskPending (int32_t id)
+{
+      tasks[id].state = TASK_PENDING;
+      return 0;
+}
+
+int32_t TaskReady (int32_t id)
+{
+      tasks[id].state = TASK_READY;
+      return 0;
+
+}
+
+int32_t TaskRunning (int32_t id)
+{
+
+      tasks[id].state = TASK_RUNNING;
+      return 0;
+
+}
+
 int32_t TaskKill (int32_t id)
 {
-  if (tasks[id].f != NULL)
-    {
-      tasks[id].f = NULL;
-      tasks[id].data = NULL;
-    }
-  else
-    return -1;
-  return 1;
+      tasks[id].state = TASK_INACTIVE;
+      return 0;
+
 }
 
 int32_t TaskCurrent (void)
@@ -182,7 +201,7 @@ int32_t TaskStateChange (void *data)
 	    nextState = TASK_PENDING; // Change to TASK_PENDING instead of TASK_RUNNING
 	  }
 	  
-	  tasks[taskId].state = nextState;
+	  //tasks[taskId].state = nextState;
 
 	  char taskName[15];
 	  switch (currentState)
@@ -211,17 +230,33 @@ int32_t TaskStateChange (void *data)
 	    {
 	    case TASK_READY:
 	      strcpy (nextStateName, "TASK_READY");
+	      if(TaskReady(taskId)==1)
+	      {
+	      	printf ("Error Changing State!!!\n");
+	      }
 	      break;
 	    case TASK_RUNNING:
 	      strcpy (nextStateName, "TASK_RUNNING");
 	      // Set running_flag when a task is changed to RUNNING state
+	      if(TaskRunning(taskId)==1)
+	      {
+	      	printf ("Error Changing State!!!\n");
+	      }
 	      running_flag = 1;
 	      break;
 	    case TASK_PENDING:
 	      strcpy (nextStateName, "TASK_PENDING");
+	      if(TaskPending(taskId)==1)
+	      {
+	      	printf ("Error Changing State!!!\n");
+	      }
 	      break;
 	    case TASK_INACTIVE:
 	      strcpy (nextStateName, "TASK_INACTIVE");
+	      if(TaskKill(taskId)==1)
+	      {
+	      	printf ("Error Changing State!!!\n");
+	      }
 	      break;
 	    default:
 	      strcpy (nextStateName, "UNKNOWN_STATE");
@@ -248,7 +283,7 @@ void Task1 (void *data)
 	printf ("Task 1 Created \n");
     }
   else
-    printf ("Task 1 Already Exist \n");
+    printf ("Task 1 Exist \n");
 }
 
 void Task2 (void *data)
@@ -266,7 +301,7 @@ void Task2 (void *data)
 	}
     }
   else
-    printf ("Task 2 Alredy Exist \n");
+    printf ("Task 2 Exist \n");
 }
 
 void Task3 (void *data)
@@ -284,7 +319,7 @@ void Task3 (void *data)
 	}
     }
   else
-    printf ("Task 3 Alredy Exist \n");
+    printf ("Task 3 Exist \n");
 }
 
 void Task4 (void *data)
@@ -302,7 +337,7 @@ void Task4 (void *data)
 	}
     }
   else
-    printf ("Task 4 Alredy Exist \n");
+    printf ("Task 4 Exist \n");
 }
 
 void Task5 (void *data)
@@ -320,8 +355,10 @@ void Task5 (void *data)
 	}
     }
   else
-    printf ("Task 5 Alredy Exist\n");
+    printf ("Task 5 Exist\n");
+}
 
+/*
   if (tasks[FindTaskID (Task2)].state == TASK_INACTIVE)
     {
       if (TaskKill (FindTaskID (Task2)))
@@ -364,6 +401,8 @@ void Task5 (void *data)
 
 }
 
+*/
+
 void TaskSwitcher (void)
 {
   int32_t nextTaskIndex;
@@ -384,7 +423,7 @@ void TaskSwitcher (void)
       {
           currentTaskId = nextTaskIndex; // Move to the next task
       }
-      while (tasks[currentTaskId].state == TASK_INACTIVE)
+      while (tasks[currentTaskId].state == TASK_INACTIVE || (tasks[currentTaskId].state == TASK_PENDING && running_flag == 1))
       {
           currentTaskId++;
       }
@@ -427,7 +466,7 @@ void TaskSwitcher (void)
       {
           currentTaskId = nextTaskIndex; // Move to the next task
       }
-      while (tasks[currentTaskId].state == TASK_INACTIVE)
+      while (tasks[currentTaskId].state == TASK_INACTIVE || (tasks[currentTaskId].state == TASK_PENDING && running_flag == 1))
       {
           currentTaskId++;
       }
