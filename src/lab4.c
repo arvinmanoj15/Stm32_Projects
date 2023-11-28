@@ -199,7 +199,8 @@ uint32_t SemaphoreAcquire(uint32_t semaphoreHandle)
 	/*if(Semaphores[semaphoreHandle].state == SEMAPHORE_FREE) 
 	{
 		printf("Error: trying to acquire an unallocated semaphore in SemaphoreAcquire()\n");
-		return 1;
+		TaskPending(TaskCurrent());
+		return 0;
 	}*/
 	/*if(Semaphores[semaphoreHandle].taskID != -1) 
 	{
@@ -278,7 +279,7 @@ int32_t TaskReady (int32_t id)
     if (SemaphoreAcquire(readySemaphore) == 1) {
         tasks[id].state = TASK_READY;
         printf("Changing Task%ld state to TASK_READY\n",id+1);
-        printf("Action: Semaphore Accured \n");
+        printf("Action: Ready Semaphore Accured \n");
 	printf("Task %ld state: %s\n", id+1, GetTaskStateName(tasks[id].state));
         return 1;
     } 
@@ -302,7 +303,7 @@ int32_t TaskRunning (int32_t id)
         //currentTaskId = id;
         SemaphorePost(readySemaphore);
   	printf("Changing Task%ld state to TASK_RUNNING\n",id+1);
-  	printf("Action: Semaphore Accured \n");
+  	printf("Action: Running Semaphore Accured \n");
   	printf("Task %ld state: %s\n", id+1, GetTaskStateName(tasks[id].state));
         return 1;
     } 
