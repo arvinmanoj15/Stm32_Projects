@@ -77,6 +77,8 @@ Semaphore_t Semaphores[MAX_SEMAPHORES];
 
 int32_t TaskAdd (void (*f) (void *data), void *data, TaskStatus state);
 int32_t TaskPending (int32_t id);
+int32_t OneSemaphore (int32_t id);
+int32_t TwoSemaphore (int32_t id);
 int32_t TaskReady (int32_t id);
 int32_t TaskRunning (int32_t id);
 int32_t TaskKill (int32_t id);
@@ -169,15 +171,15 @@ uint32_t SemaphorePost(uint32_t semaphoreHandle)
 	}
 	/* Post the semaphore */
 	
-	printf("Task id in semaphore Post = %ld \n",Semaphores[semaphoreHandle].taskID);
+	//printf("Task id in semaphore Post = %ld \n",Semaphores[semaphoreHandle].taskID);
 	/* Can we unblock a task now */
 	if((Semaphores[semaphoreHandle].count == 0) && (Semaphores[semaphoreHandle].taskID >= -1))
 	{
 		/* Yes, count is greater than 0,
 		* and there is a task waiting */
-		//TaskReady(Semaphores[semaphoreHandle].taskID);
+		//OneSemaphore(Semaphores[semaphoreHandle].taskID);
 		
-		printf("Reached place of -1\n");
+		//printf("Reached place of -1\n");
 		//Semaphores[semaphoreHandle].count--;
 		Semaphores[semaphoreHandle].taskID = -1;
 		Semaphores[semaphoreHandle].state = SEMAPHORE_FREE;
@@ -216,16 +218,16 @@ uint32_t SemaphoreAcquire(uint32_t semaphoreHandle)
 		Semaphores[semaphoreHandle].count--;
 		return 1;
 	}
-	printf("Task id in semaphore Acquire = %ld \n",Semaphores[semaphoreHandle].taskID);
+	//printf("Task id in semaphore Acquire = %ld \n",Semaphores[semaphoreHandle].taskID);
 	TaskPending(TaskCurrent());
 	return 0;
 }
 
-uint32_t readySemaphore, runningSemaphore;
+uint32_t semaphoreOne, semaphoreTwo;
 
 void InitSemaphores(void) {
-    SemaphoreNew(&readySemaphore, 1, "Ready Semaphore"); //  one tasks to be READY
-    SemaphoreNew(&runningSemaphore, 1, "Running Semaphore"); // one task can be RUNNING
+    SemaphoreNew(&semaphoreOne, 1, "Ready Semaphore"); //  one tasks to be READY
+    SemaphoreNew(&semaphoreTwo, 1, "Running Semaphore"); // one task can be RUNNING
 }
 
 
@@ -274,13 +276,15 @@ int32_t TaskPending (int32_t id)
       return 1;
 }
 
-int32_t TaskReady (int32_t id)
+int32_t OneSemaphore (int32_t id)
 {
-    if (SemaphoreAcquire(readySemaphore) == 1) {
-        tasks[id].state = TASK_READY;
-        printf("Changing Task%ld state to TASK_READY\n",id+1);
-        printf("Action: Ready Semaphore Accured \n");
-	printf("Task %ld state: %s\n", id+1, GetTaskStateName(tasks[id].state));
+    if (SemaphoreAcquire(semaphoreOne) == 1) {
+        if(TaskReady(id) == 1)
+        {
+		printf("Changing Task%ld state to TASK_READY\n",id+1);
+		printf("Action: Ready Semaphore Accured \n");
+		printf("Task %ld state: %s\n", id+1, GetTaskStateName(tasks[id].state));
+	}
         return 1;
     } 
     else {
@@ -292,19 +296,28 @@ int32_t TaskReady (int32_t id)
 
 }
 
-int32_t TaskRunning (int32_t id)
+int32_t TaskReady (int32_t id)
 {
-   if (SemaphoreAcquire(runningSemaphore) == 1) {
-        tasks[id].state = TASK_RUNNING;
+  tasks[id].state = TASK_READY;
+  return 1;
+}
+
+int32_t TwoSemaphore (int32_t id)
+{
+   if (SemaphoreAcquire(semaphoreTwo) == 1) {
+        //tasks[id].state = TASK_RUNNING;
         //running_flag = 1;
 
-        // Release a readySemaphore when a task moves to RUNNING
-        //ReleaseSemaphoreAndCheckQueue(readySemaphore, readyQueue, &readyQueueSize);
+        // Release a semaphoreOne when a task moves to RUNNING
+        //ReleaseSemaphoreAndCheckQueue(semaphoreOne, readyQueue, &readyQueueSize);
         //currentTaskId = id;
-        SemaphorePost(readySemaphore);
-  	printf("Changing Task%ld state to TASK_RUNNING\n",id+1);
-  	printf("Action: Running Semaphore Accured \n");
-  	printf("Task %ld state: %s\n", id+1, GetTaskStateName(tasks[id].state));
+        if(TaskRunning(id) == 1)
+        {
+		SemaphorePost(semaphoreOne);
+	  	printf("Changing Task%ld state to TASK_RUNNING\n",id+1);
+	  	printf("Action: Running Semaphore Accured \n");
+	  	printf("Task %ld state: %s\n", id+1, GetTaskStateName(tasks[id].state));
+	}
         return 1;
     } 
     else {
@@ -316,15 +329,21 @@ int32_t TaskRunning (int32_t id)
 
 }
 
+int32_t TaskRunning (int32_t id)
+{
+  tasks[id].state = TASK_RUNNING;
+  return 1;
+}
+
 int32_t TaskKill (int32_t id)
 {
       if (tasks[id].state == TASK_RUNNING) {
         tasks[id].state = TASK_INACTIVE;
 
-        // Release runningSemaphore when a task is killed (stops running)
-        //ReleaseSemaphoreAndCheckQueue(runningSemaphore, runningQueue, &runningQueueSize);
+        // Release semaphoreTwo when a task is killed (stops running)
+        //ReleaseSemaphoreAndCheckQueue(semaphoreTwo, runningQueue, &runningQueueSize);
         //currentTaskId = id;
-        SemaphorePost(runningSemaphore);
+        SemaphorePost(semaphoreTwo);
 	printf("Changing Task%ld state to TASK_INACTIVE\n",id+1);
 	printf("Task %ld state: %s\n", id+1, GetTaskStateName(tasks[id].state));
         running_flag = 0;  // Reset the running flag
@@ -353,11 +372,11 @@ int32_t FindTaskID (void *data)
 
 int ProcessQueueTasksAndChangeState() {
     int32_t taskId;
-    if (Semaphores[runningSemaphore].count > 0 && (taskId = Dequeue(runningQueue, &runningQueueSize)) != -1) {
-        TaskRunning(taskId);
+    if (Semaphores[semaphoreTwo].count > 0 && (taskId = Dequeue(runningQueue, &runningQueueSize)) != -1) {
+        TwoSemaphore(taskId);
         return 1;
-    } else if (Semaphores[readySemaphore].count > 0 && (taskId = Dequeue(readyQueue, &readyQueueSize)) != -1) {
-        TaskReady(taskId);
+    } else if (Semaphores[semaphoreOne].count > 0 && (taskId = Dequeue(readyQueue, &readyQueueSize)) != -1) {
+        OneSemaphore(taskId);
         return 1;
     }
     return 0;
@@ -376,16 +395,16 @@ int32_t TaskStateChange(void *data) {
 
     if (taskId != -1) {
         //TaskStatus currentState = tasks[taskId].state;
-        printf("Task %ld state: %s\n",taskId+1, GetTaskStateName(tasks[taskId].state));
+        //printf("Task %ld state: %s\n",taskId+1, GetTaskStateName(tasks[taskId].state));
 	
         // Handle state transitions based on current state
         if (tasks[taskId].state == TASK_PENDING) {
             // Attempt to transition from PENDING to READY
-            TaskReady(taskId);
+            OneSemaphore(taskId);
         }
         else if (tasks[taskId].state == TASK_READY) {
             // Attempt to transition from READY to RUNNING
-            TaskRunning(taskId);
+            TwoSemaphore(taskId);
         }
         else if (tasks[taskId].state == TASK_RUNNING) {
             // Transition from RUNNING to INACTIVE
@@ -508,19 +527,19 @@ void TaskSwitcher(void) {
             TaskKill(currentTaskId); // Change running task to inactive
         } else {
             // Check running queue first if semaphore is free
-            if (Semaphores[runningSemaphore].count > 0 && runningQueueSize > 0) {
+            if (Semaphores[semaphoreTwo].count > 0 && runningQueueSize > 0) {
                 int32_t runningTaskId = Dequeue(runningQueue, &runningQueueSize);
                 if (runningTaskId != -1) {
                     printf("Queue RUN \n");
-                    TaskRunning(runningTaskId);
+                    TwoSemaphore(runningTaskId);
                 }
             }
             // Then check ready queue if semaphore is free
-            else if (Semaphores[readySemaphore].count > 0 && readyQueueSize > 0) {
+            else if (Semaphores[semaphoreOne].count > 0 && readyQueueSize > 0) {
                 int32_t readyTaskId = Dequeue(readyQueue, &readyQueueSize);
                 if (readyTaskId != -1) {
                     printf("Queue READY \n");
-                    TaskReady(readyTaskId);
+                    OneSemaphore(readyTaskId);
                 }
             }
             // If no tasks in queues, try changing the state of the current task
@@ -559,19 +578,19 @@ void TaskSwitcher(void) {
             TaskKill(currentTaskId); // Change running task to inactive
         } else {
             // Check running queue first if semaphore is free
-            if (Semaphores[runningSemaphore].count > 0 && runningQueueSize > 0) {
+            if (Semaphores[semaphoreTwo].count > 0 && runningQueueSize > 0) {
                 int32_t runningTaskId = Dequeue(runningQueue, &runningQueueSize);
                 if (runningTaskId != -1) {
                     printf("Queue RUN \n");
-                    TaskRunning(runningTaskId);
+                    TwoSemaphore(runningTaskId);
                 }
             }
             // Then check ready queue if semaphore is free
-            else if (Semaphores[readySemaphore].count > 0 && readyQueueSize > 0) {
+            else if (Semaphores[semaphoreOne].count > 0 && readyQueueSize > 0) {
                 int32_t readyTaskId = Dequeue(readyQueue, &readyQueueSize);
                 if (readyTaskId != -1) {
                     printf("Queue READY \n");
-                    TaskReady(readyTaskId);
+                    OneSemaphore(readyTaskId);
                 }
             }
             // If no tasks in queues, try changing the state of the current task
